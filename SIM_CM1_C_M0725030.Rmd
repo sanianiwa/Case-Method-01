@@ -1,0 +1,632 @@
+---
+title: "CASE METHOD 1"
+author: "Sania Niwa Ningrum_M0725030"
+date: "`r Sys.Date()`"
+output: html_document
+---
+<style>
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+body{
+    font-family: 'Poppins', sans-serif;
+    background-color: white;
+    color: black;
+    line-height: 1.8;
+    margin: 40px;
+}
+
+h1{
+    color: darkred;
+    text-align: center;
+}
+
+h2{
+    color: darkgreen;
+}
+
+p{
+    text-align: justify;
+    font-size: 17px;
+}
+
+.box{
+    background-color: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0px 4px 10px rgba(0,0,0,0.08);
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      message = FALSE)
+```
+
+<div class="box">
+
+<p>
+Pada tahap awal dilakukan proses pemanggilan beberapa <i>library</i> yang dibutuhkan untuk mendukung pengolahan data, visualisasi, serta koneksi database pada bahasa pemrograman <b>R</b>. Library <b>DBI</b> digunakan untuk membangun koneksi antara R dengan database <i>MySQL Sakila</i> sehingga data dapat diakses dan diambil menggunakan query SQL. Selanjutnya, library <b>ggplot2</b> digunakan untuk membuat visualisasi data seperti boxplot, scatter plot, dan bar chart agar pola data lebih mudah dipahami secara visual.
+</p>
+
+<p>
+Selain itu, library <b>dplyr</b> digunakan untuk membantu proses manipulasi dan transformasi data seperti filtering, grouping, summarizing, dan pengolahan tabel secara lebih efisien dan terstruktur. Library <b>scales</b> digunakan untuk mempercantik tampilan visualisasi, khususnya dalam format angka pada sumbu grafik, seperti mengubah angka menjadi format mata uang (<i>dollar</i>) maupun format numerik lain agar lebih mudah dibaca.
+</p>
+
+<p>
+Pemanggilan library dilakukan di awal proses analisis agar seluruh fungsi yang diperlukan dapat digunakan pada tahap pengambilan data, pengolahan data, analisis statistik, hingga visualisasi hasil analisis.
+</p>
+
+</div>
+```{r loadlibrary, warning=FALSE}
+library(DBI)
+library(ggplot2)
+library(dplyr)
+library(scales)
+```
+
+<div class="box">
+
+<p>
+Tahap selanjutnya adalah melakukan koneksi antara bahasa pemrograman <b>R</b> dengan database <b>Sakila</b> menggunakan fungsi <code>dbConnect()</code> dari package <b>DBI</b> dan <b>odbc</b>. Koneksi ini bertujuan agar data yang tersimpan pada database MySQL dapat diakses secara langsung melalui R untuk keperluan analisis dan visualisasi data.
+</p>
+
+<p>
+Hasil dari proses koneksi tersebut disimpan ke dalam objek <code>con</code> yang nantinya digunakan sebagai penghubung utama dalam menjalankan query SQL, mengambil data dari database, serta melakukan proses analisis data lebih lanjut di lingkungan R.
+</p>
+
+</div>
+
+```{r Koneksi Data}
+con <- DBI::dbConnect(odbc::odbc(),
+                      Driver    = "MySQL ODBC 8.0 ANSI Driver", 
+                      Server    = "127.0.0.1",
+                      Database  = "sakila",
+                      UID       = "root",
+                      PWD       = "Sukoharjo-0098",
+                      Port      = 3306)
+
+```
+
+<div class="box">
+
+<p>
+Setelah koneksi database berhasil dilakukan, tahap berikutnya adalah proses pengambilan data (<i>data retrieval</i>) dari database <b>Sakila</b> menggunakan query SQL. Pada tahap ini, data diambil sesuai dengan kebutuhan analisis yang akan dilakukan. Query SQL digunakan untuk memilih variabel tertentu, melakukan pengelompokan data, menghitung jumlah transaksi, maupun menggabungkan beberapa tabel yang saling berelasi dalam database.
+</p>
+
+<p>
+Data yang berhasil diambil dari database kemudian disimpan ke dalam bentuk <i>data frame</i> di lingkungan R agar dapat diolah lebih lanjut. Proses ini memungkinkan data dianalisis menggunakan berbagai metode statistik serta divisualisasikan dalam bentuk grafik untuk memperoleh insight yang lebih mudah dipahami.
+</p>
+
+</div>
+
+<P>
+<div class="box">
+
+<p>
+Pada tahap pengambilan data pertama, dilakukan proses ekstraksi dan transformasi data untuk mengetahui jumlah transaksi rental berdasarkan waktu dan tipe hari. Query SQL digunakan untuk mengambil data dari tabel <code>rental</code> dengan memanfaatkan fungsi <code>DATE()</code> untuk mengekstrak tanggal dari <code>rental_date</code>, serta struktur <code>CASE WHEN</code> untuk mengelompokkan hari menjadi dua kategori, yaitu <i>Weekday</i> dan <i>Weekend</i> berdasarkan nama hari.
+</p>
+
+<p>
+Data yang diambil digunakan untuk menganalisis apakah terdapat perbedaan rata-rata jumlah penyewaan film harian (<code>total_rental</code>) antara dua kelompok hari, yaitu <i>Weekday</i> dan <i>Weekend</i>.
+</p>
+
+<p>
+Selanjutnya, data dikelompokkan menggunakan <code>GROUP BY</code> berdasarkan tanggal dan tipe hari, kemudian dihitung jumlah transaksi rental menggunakan fungsi <code>COUNT(rental_id)</code> sehingga menghasilkan variabel <code>total_rental</code>.
+</p>
+
+<div style="background-color:#eef2ff; padding:15px; border-radius:10px; text-align:center; margin:15px 0;">
+
+<span>
+\[
+\text{total\_rental} = \sum \text{rental\_id}
+\]
+</span>
+
+</div>
+
+```{r Mengambil Data 1}
+query_1 = "SELECT 
+    DATE(rental_date) AS tanggal,
+    CASE 
+        WHEN DAYNAME(rental_date) IN ( 'Saturday', 'Sunday') THEN 'Weekend'
+        ELSE 'Weekday'
+    END AS tipe_hari,
+    COUNT(rental_id) AS total_rental
+FROM rental
+GROUP BY DATE(rental_date), tipe_hari;"
+data_1 = dbGetQuery(con, query_1)
+data_1$total_rental <- as.numeric(data_1$total_rental)
+data_1
+```
+
+<div class="box">
+
+<p>
+Pada tahap analisis data pertama, dilakukan pengujian statistik menggunakan metode <i>Welch Two Sample t-test</i> melalui fungsi <code>t.test()</code> pada bahasa pemrograman <b>R</b>. Pengujian ini bertujuan untuk mengetahui apakah terdapat perbedaan rata-rata jumlah penyewaan film harian (<code>total_rental</code>) antara dua kelompok hari, yaitu <i>Weekday</i> dan <i>Weekend</i>.
+</p>
+
+<p>
+Hasil pengujian kemudian disimpan ke dalam objek <code>ttest</code> agar dapat digunakan kembali untuk proses interpretasi maupun pelaporan hasil analisis. Selanjutnya, fungsi <code>print(ttest)</code> digunakan untuk menampilkan output hasil uji statistik yang meliputi nilai statistik uji <i>t</i>, derajat kebebasan (<i>degrees of freedom</i>), nilai <i>p-value</i>, interval kepercayaan (<i>confidence interval</i>), serta rata-rata masing-masing kelompok data yang dibandingkan.
+</p>
+
+</div>
+
+```{r Analisis Data 1}
+ttest <- t.test(total_rental ~ tipe_hari, data = data_1)
+print(ttest)
+```
+
+<div class="box">
+
+<p>
+Berdasarkan hasil pengujian statistik menggunakan <i>Welch Two Sample t-test</i>, diperoleh nilai statistik uji sebesar 
+<span>\(t = -1.2807\)</span> dengan derajat kebebasan 
+(<i>degrees of freedom</i>) sebesar 
+<span>\(df = 18.176\)</span> dan nilai 
+<i>p-value</i> sebesar 
+<span>\(0.2164\)</span>. Pengujian ini dilakukan untuk mengetahui apakah terdapat perbedaan rata-rata jumlah penyewaan film harian antara kelompok <i>Weekday</i> dan <i>Weekend</i>.
+</p>
+
+<p>
+Hipotesis yang digunakan dalam pengujian ini adalah:
+</p>
+
+<div style="background-color:#f5f5f5; padding:15px; border-radius:10px; margin:15px 0;">
+
+<p>
+<span>\[
+H_0 : \mu_{Weekday} = \mu_{Weekend}
+\]</span>
+</p>
+
+<p>
+<span>\[
+H_1 : \mu_{Weekday} \ne \mu_{Weekend}
+\]</span>
+</p>
+
+</div>
+
+<p>
+Hipotesis nol (<span>\(H_0\)</span>) menyatakan bahwa tidak terdapat perbedaan rata-rata jumlah rental film antara hari kerja dan akhir pekan, sedangkan hipotesis alternatif (<span>\(H_1\)</span>) menyatakan bahwa terdapat perbedaan rata-rata di antara kedua kelompok tersebut.
+</p>
+
+<p>
+Karena nilai <i>p-value</i> lebih besar dibandingkan taraf signifikansi yang digunakan, yaitu 
+<span>\(\alpha = 0.05\)</span>, maka keputusan yang diambil adalah gagal menolak hipotesis nol 
+(<span>\(0.2164 > 0.05\)</span>). Hal ini menunjukkan bahwa secara statistik tidak terdapat bukti yang cukup kuat untuk menyatakan adanya perbedaan rata-rata volume penyewaan film antara kelompok <i>Weekday</i> dan <i>Weekend</i>.
+</p>
+
+<p>
+Berdasarkan hasil estimasi rata-rata sampel, diperoleh bahwa rata-rata jumlah rental pada kelompok <i>Weekday</i> adalah sebesar 
+<span>\(368.1613\)</span> transaksi per hari, sedangkan rata-rata pada kelompok <i>Weekend</i> sebesar 
+<span>\(463.1000\)</span> transaksi per hari. Secara deskriptif, nilai tersebut menunjukkan bahwa aktivitas penyewaan film pada akhir pekan cenderung lebih tinggi dibandingkan hari kerja dengan selisih rata-rata sekitar:
+</p>
+
+<div style="background-color:#eef2ff; padding:15px; border-radius:10px; text-align:center; margin:15px 0;">
+
+<span>\[
+463.1000 - 368.1613 = 94.9387
+\]</span>
+
+</div>
+
+<p>
+Meskipun demikian, selisih rata-rata tersebut belum dapat dianggap signifikan secara statistik karena masih dipengaruhi oleh variasi data harian yang cukup besar. Hal ini diperkuat oleh interval kepercayaan 95% yang berada pada rentang:
+</p>
+
+<div style="background-color:#eef2ff; padding:15px; border-radius:10px; text-align:center; margin:15px 0;">
+
+<span>\[
+-250.57405 \le (\mu_{Weekday} - \mu_{Weekend}) \le 60.69663
+\]</span>
+
+</div>
+
+<p>
+Karena interval kepercayaan tersebut mencakup angka nol, maka perbedaan rata-rata antara kedua kelompok masih memungkinkan bernilai nol atau bahkan berlawanan arah. Dengan kata lain, belum terdapat bukti statistik yang cukup kuat bahwa jumlah rental film pada akhir pekan benar-benar lebih tinggi secara konsisten dibandingkan hari kerja.
+</p>
+
+</div>
+
+```{r Visualisasi Data 1, warning=FALSE}
+# Membuat Boxplot Perbandingan Jumlah Rental
+ggplot(data_1, aes(x = tipe_hari, y = total_rental, fill = tipe_hari)) +
+  geom_boxplot(alpha = 0.7, width = 0.5, color = "darkred") +
+  # Menambahkan titik data asli agar sebaran data makin kelihatan jelas
+  geom_jitter(width = 0.1, alpha = 0.3, color = "black") + 
+  # Mengatur warna: Weekday (Biru), Weekend (Oranye)
+  scale_fill_manual(values = c("Weekday" = "pink", "Weekend" = "lightblue")) +
+  labs(
+    title = "Analisis Distribusi Total Rental Harian",
+    x = "Tipe Hari",
+    y = "Total Rental per Hari"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(italic = TRUE, size = 10, color = "black"),
+    axis.text = element_text(size = 11),
+    legend.position = "none" # Menghilangkan legenda karena label x sudah jelas
+  )
+```
+
+<div class="box">
+
+<p>
+Berdasarkan boxplot terlihat bahwa distribusi jumlah penyewaan film pada kelompok <i>Weekend</i> cenderung lebih tinggi dibandingkan <i>Weekday</i>. Hal ini dapat dilihat dari posisi garis median pada kelompok <i>Weekend</i> yang berada di sekitar 
+<span>\(500\)</span> transaksi per hari, sedangkan median pada kelompok <i>Weekday</i> hanya berada di kisaran 
+<span>\(350\)</span> transaksi per hari.
+</p>
+
+<p>
+Perbedaan median tersebut menunjukkan bahwa secara umum aktivitas penyewaan film pada akhir pekan lebih ramai dibandingkan hari kerja. Kondisi ini dapat dijelaskan karena pelanggan cenderung memiliki waktu luang yang lebih banyak pada akhir pekan sehingga frekuensi penyewaan film meningkat. Selain itu, posisi box pada kelompok <i>Weekend</i> juga terlihat lebih tinggi secara keseluruhan dibandingkan <i>Weekday</i>, yang mengindikasikan bahwa sebagian besar nilai transaksi akhir pekan berada pada tingkat yang relatif tinggi.
+</p>
+
+<p>
+Dari sisi penyebaran data, kelompok <i>Weekday</i> memiliki rentang distribusi yang lebih lebar dibandingkan <i>Weekend</i>. Hal ini terlihat dari ukuran box 
+(<i>Interquartile Range/IQR</i>) dan whisker pada kelompok <i>Weekday</i> yang lebih panjang. Secara matematis, IQR dapat dinyatakan sebagai:
+</p>
+
+<div style="background-color:#eef2ff; padding:15px; border-radius:10px; text-align:center; margin:15px 0;">
+
+<span>\[
+IQR = Q_3 - Q_1
+\]</span>
+
+</div>
+
+<p>
+Nilai IQR yang lebih besar menunjukkan bahwa variasi data pada kelompok <i>Weekday</i> lebih tinggi sehingga volume rental pada hari kerja cenderung lebih fluktuatif atau tidak stabil. Pada beberapa hari kerja terjadi jumlah rental yang sangat rendah, bahkan mendekati nol transaksi, sementara pada hari lainnya dapat meningkat hingga lebih dari 
+<span>\(600\)</span> transaksi per hari.
+</p>
+
+<p>
+Selain itu, pada boxplot juga terlihat adanya beberapa titik ekstrem (<i>outlier</i>) terutama pada kelompok <i>Weekday</i>. Titik-titik dengan nilai sangat rendah menunjukkan adanya hari-hari tertentu dengan aktivitas rental yang jauh di bawah kondisi normal. Kondisi tersebut dapat dipengaruhi oleh berbagai faktorlainnya.
+</p>
+
+<p>
+Di sisi lain, terdapat pula beberapa titik dengan nilai sangat tinggi pada kedua kelompok yang mengindikasikan adanya lonjakan transaksi pada hari-hari tertentu. Namun secara keseluruhan, meskipun kelompok <i>Weekend</i> menunjukkan kecenderungan volume rental yang lebih tinggi secara visual, distribusi kedua kelompok masih saling tumpang tindih (<i>overlap</i>) dalam jumlah yang cukup besar.
+</p>
+
+<p>
+Temuan visual ini sejalan dengan hasil pengujian statistik menggunakan <i>Welch Two Sample t-test</i> sebelumnya yang menunjukkan bahwa perbedaan rata-rata antara kelompok <i>Weekday</i> dan <i>Weekend</i> belum signifikan secara statistik. Dengan demikian, meskipun secara deskriptif akhir pekan memiliki aktivitas rental yang lebih tinggi, peningkatan tersebut belum cukup konsisten untuk membuktikan adanya perbedaan rata-rata yang signifikan secara statistik.
+</p>
+
+</div>
+
+<div class="box">
+
+<p>
+Pada tahap pengambilan data kedua, dilakukan proses ekstraksi data untuk menganalisis kontribusi pendapatan (<i>revenue</i>) dari masing-masing negara pada database <b>Sakila</b>. Query SQL digunakan untuk menggabungkan beberapa tabel yang saling berelasi, yaitu tabel <code>customer</code>, <code>address</code>, <code>city</code>, <code>country</code>, dan <code>payment</code>.
+</p>
+
+<p>
+Variabel <code>co.country</code> digunakan untuk mengambil nama negara pelanggan dan diberi alias <code>negara</code>. Selanjutnya, fungsi agregasi:
+</p>
+
+<div style="background-color:#eef2ff; padding:15px; border-radius:10px; text-align:center; margin:15px 0;">
+
+<span>\[
+COUNT(DISTINCT\ c.customer\_id)
+\]</span>
+
+</div>
+
+<p>
+digunakan untuk menghitung jumlah pelanggan unik pada masing-masing negara sehingga diperoleh variabel <code>total_pelanggan</code>. Sementara itu, fungsi:
+</p>
+
+<div style="background-color:#eef2ff; padding:15px; border-radius:10px; text-align:center; margin:15px 0;">
+
+<span>\[
+SUM(p.amount)
+\]</span>
+
+</div>
+
+<p>
+digunakan untuk menghitung total pendapatan (<i>total revenue</i>) yang diperoleh dari seluruh transaksi pembayaran pelanggan pada tiap negara.
+</p>
+
+<p>
+Data kemudian dikelompokkan berdasarkan negara menggunakan perintah:
+</p>
+
+<div style="background-color:#eef2ff; padding:15px; border-radius:10px; text-align:center; margin:15px 0;">
+
+<span>\[
+GROUP\ BY\ co.country
+\]</span>
+
+</div>
+
+<p>
+sehingga setiap negara memiliki ringkasan jumlah pelanggan dan total revenue masing-masing. Setelah itu, hasil query diurutkan berdasarkan nilai <code>total_revenue</code> secara menurun (<i>descending</i>) menggunakan:
+</p>
+
+<div style="background-color:#eef2ff; padding:15px; border-radius:10px; text-align:center; margin:15px 0;">
+
+<span>\[
+ORDER\ BY\ total\_revenue\ DESC
+\]</span>
+
+</div>
+
+<p>
+Tujuan pengurutan ini adalah untuk mempermudah identifikasi negara dengan kontribusi pendapatan terbesar terhadap perusahaan rental film.
+</p>
+
+<p>
+Hasil query kemudian disimpan ke dalam objek <code>data_2</code> menggunakan fungsi <code>dbGetQuery()</code>. Dataset tersebut selanjutnya digunakan untuk proses visualisasi dan analisis lebih lanjut terkait distribusi revenue antarnegara pada database Sakila.
+</p>
+
+</div>
+```{r Mengambil Data 2}
+query_2 = "SELECT 
+    co.country AS negara,
+    COUNT(DISTINCT c.customer_id) AS total_pelanggan,
+    SUM(p.amount) AS total_revenue
+FROM customer c
+JOIN address a ON c.address_id = a.address_id
+JOIN city ci ON a.city_id = ci.city_id
+JOIN country co ON ci.country_id = co.country_id
+JOIN payment p ON c.customer_id = p.customer_id
+GROUP BY co.country
+ORDER BY total_revenue DESC;"
+data_2 = dbGetQuery(con, query_2)
+head(data_2)
+```
+
+<div class="box">
+
+<p>
+Pada tahap berikutnya, dilakukan proses pengambilan <i>Top 10</i> negara dengan kontribusi revenue terbesar dari dataset <code>data_2</code>. Proses ini dilakukan menggunakan fungsi <code>head()</code> pada bahasa pemrograman <b>R</b>, yaitu:
+</p>
+
+<div style="background-color:#eef2ff; padding:15px; border-radius:10px; text-align:center; margin:15px 0;">
+
+<span>\[
+top10 \leftarrow head(data\_2,\ 10)
+\]</span>
+
+</div>
+
+<p>
+Fungsi <code>head()</code> digunakan untuk mengambil sejumlah baris pertama dari suatu dataset. Karena sebelumnya data telah diurutkan berdasarkan <code>total_revenue</code> secara menurun (<i>descending</i>), maka sepuluh baris pertama pada <code>data_2</code> merepresentasikan sepuluh negara dengan total pendapatan tertinggi pada database Sakila.
+</p>
+
+</div>
+
+```{r Ambil Top 10 dari Data 2}
+top10<- head(data_2, 10)
+top10
+```
+
+<div class="box">
+
+<p>
+Pada tahap visualisasi data kedua, digunakan <i>bar chart</i> menggunakan package <b>ggplot2</b> untuk menampilkan <i>Top 10</i> negara dengan kontribusi revenue terbesar. Grafik dibuat menggunakan fungsi <code>geom_bar()</code> dengan tinggi batang merepresentasikan total pendapatan (<i>total revenue</i>) masing-masing negara.
+</p>
+
+<p>
+Warna batang menggunakan gradasi dari <i>lightblue</i> hingga <i>darkblue</i> untuk memperjelas perbedaan besar revenue antarnegara. Selain itu, fungsi <code>label_dollar()</code> digunakan agar sumbu revenue ditampilkan dalam format mata uang dollar sehingga lebih mudah dibaca dan diinterpretasikan.
+</p>
+
+<p>
+Visualisasi ini bertujuan untuk mempermudah identifikasi negara-negara yang memberikan kontribusi pendapatan terbesar terhadap perusahaan rental film pada database Sakila.
+</p>
+
+</div>
+
+```{r Visualisasi Data 2}
+ggplot(top10, aes(x = reorder(negara, total_revenue), y = total_revenue, fill = total_revenue)) +
+  geom_bar(stat = "identity", alpha = 0.8) +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  scale_y_continuous(labels = label_dollar())+
+  labs(
+    title = "Top 10 Negara dengan Kontribusi Revenue Terbesar",
+    x = "Negara",
+    y = "Total Revenue ($)"
+  ) +
+  theme_minimal() +
+theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), 
+    legend.position = "none", 
+    plot.title = element_text(face = "bold")
+  )
+```
+
+<div class="box">
+
+<p>
+Berdasarkan visualisasi <i>bar chart</i>, terlihat bahwa kontribusi pendapatan (<i>revenue</i>) antarnegara tidak tersebar secara merata. <b>India</b> menjadi negara dengan revenue tertinggi sebesar sekitar 
+<span>\(\$6{,}700\)</span>, diikuti <b>China</b> sekitar 
+<span>\(\$5{,}800\)</span> dan <b>United States</b> sekitar 
+<span>\(\$4{,}100\)</span>. Tingginya revenue pada negara-negara tersebut menunjukkan bahwa aktivitas penyewaan film cenderung lebih aktif dibandingkan negara lainnya.
+</p>
+
+<p>
+Selain itu, terdapat kesenjangan yang cukup besar antara negara dengan revenue tinggi dan rendah. <b>India</b> memiliki pendapatan hampir empat kali lebih besar dibandingkan <b>Nigeria</b> yang hanya berada di kisaran 
+<span>\(\$1{,}500\)</span>. Sementara itu, negara seperti <b>Brazil</b>, <b>Mexico</b>, <b>Japan</b>, dan <b>Russian Federation</b> berada pada kategori menengah dengan revenue relatif stabil di kisaran 
+<span>\(\$3{,}000 - \$3{,}500\)</span>.
+</p>
+
+</div>
+
+<div class="box">
+
+<p>
+Pada tahap pengambilan data ketiga, dilakukan proses analisis hubungan antara frekuensi penyewaan film pelanggan dan total denda keterlambatan yang dibayarkan. Query SQL digunakan untuk mengambil data dari beberapa tabel yang saling berelasi, yaitu tabel <code>payment</code>, <code>rental</code>, <code>inventory</code>, dan <code>film</code> menggunakan perintah <i>JOIN</i>.
+</p>
+
+</div>
+```{r Ambil Data 3}
+query_3 = "SELECT 
+    p.customer_id,
+    COUNT(p.rental_id) AS total_sewa,
+    SUM(p.amount) - SUM(f.rental_rate) AS total_denda
+FROM payment p
+JOIN rental r ON p.rental_id = r.rental_id
+JOIN inventory i ON r.inventory_id = i.inventory_id
+JOIN film f ON i.film_id = f.film_id
+GROUP BY p.customer_id;"
+data_3 = dbGetQuery(con, query_3)
+head (data_3)
+```
+
+<div class="box">
+
+<p>
+Pada tahap analisis data ketiga, dilakukan uji korelasi menggunakan fungsi <code>cor.test()</code> untuk mengetahui hubungan antara jumlah penyewaan film pelanggan (<code>total_sewa</code>) dengan total denda keterlambatan yang dibayarkan (<code>total_denda</code>).
+</p>
+
+<p>
+Sebelum pengujian dilakukan, kedua variabel terlebih dahulu dikonversi ke dalam tipe data numerik menggunakan fungsi <code>as.numeric()</code> agar dapat diproses dalam analisis statistik. Selanjutnya, fungsi:
+</p>
+
+<div style="background-color:#eef2ff; padding:15px; border-radius:10px; text-align:center; margin:15px 0;">
+
+<span>\[
+cor.test(total\_sewa,\ total\_denda)
+\]</span>
+
+</div>
+
+<p>
+digunakan untuk mengukur kekuatan dan arah hubungan antara kedua variabel tersebut. Hasil pengujian kemudian disimpan ke dalam objek <code>uji_korelasi</code> dan ditampilkan menggunakan <code>print()</code>.
+</p>
+
+<p>
+Melalui analisis ini, dapat diketahui apakah pelanggan yang lebih sering menyewa film cenderung memiliki total denda keterlambatan yang lebih tinggi atau tidak.
+</p>
+
+</div>
+
+```{r Uji Korelasi Data 3}
+data_3$total_sewa <- as.numeric(data_3$total_sewa)
+data_3$total_denda <- as.numeric(data_3$total_denda)
+
+uji_korelasi <- cor.test(data_3$total_sewa, data_3$total_denda)
+print(uji_korelasi)
+```
+
+<div class="box">
+
+<p>
+Berdasarkan hasil uji korelasi menggunakan <i>Pearson’s Product-Moment Correlation</i>, diperoleh nilai koefisien korelasi sebesar 
+<span>\(r = 0.6199599\)</span> dengan nilai statistik uji 
+<span>\(t = 19.306\)</span> dan derajat kebebasan 
+<span>\(df = 597\)</span>. Nilai <i>p-value</i> yang diperoleh adalah 
+<span>\(p\text{-value} < 2.2 \times 10^{-16}\)</span>, yang berarti jauh lebih kecil dibandingkan taraf signifikansi 
+<span>\(\alpha = 0.05\)</span>.
+</p>
+
+<p>
+Karena nilai <i>p-value</i> sangat kecil 
+<span>\((p < 0.05)\)</span>, maka keputusan yang diambil adalah menolak hipotesis nol 
+<span>\((H_0)\)</span>. Hal ini menunjukkan bahwa terdapat hubungan yang signifikan secara statistik antara jumlah penyewaan film pelanggan (<code>total_sewa</code>) dan total denda keterlambatan (<code>total_denda</code>).
+</p>
+
+<p>
+Nilai koefisien korelasi positif sebesar 
+<span>\(0.6199\)</span> menunjukkan bahwa hubungan antara kedua variabel bersifat positif dengan kekuatan korelasi berada pada kategori sedang hingga kuat. Artinya, semakin sering pelanggan melakukan penyewaan film, maka cenderung semakin besar pula total denda keterlambatan yang dibayarkan pelanggan tersebut.
+</p>
+
+<p>
+Selain itu, interval kepercayaan 95% berada pada rentang:
+</p>
+
+<div style="background-color:#eef2ff; padding:15px; border-radius:10px; text-align:center; margin:15px 0;">
+
+<span>\[
+0.5680619 \le \rho \le 0.6669467
+\]</span>
+
+</div>
+
+<p>
+Karena seluruh rentang interval berada di atas nol, hal ini semakin memperkuat bahwa hubungan positif antara frekuensi penyewaan dan total denda benar-benar konsisten pada populasi pelanggan.
+</p>
+
+</div>
+
+<div class="box">
+
+<p>
+Pada tahap visualisasi data ketiga, digunakan <i>scatter plot</i> untuk melihat hubungan antara frekuensi penyewaan film pelanggan (<code>total_sewa</code>) dengan total denda keterlambatan (<code>total_denda</code>). Visualisasi dibuat menggunakan fungsi <code>ggplot()</code> dengan <code>geom_point()</code> untuk menampilkan sebaran data setiap pelanggan.
+</p>
+
+<p>
+Selain itu, ditambahkan garis regresi linear menggunakan fungsi <code>geom_smooth(method = "lm")</code> untuk memperlihatkan arah hubungan antarvariabel. Secara matematis, model regresi linear sederhana dapat dinyatakan sebagai:
+</p>
+
+<div style="background-color:#eef2ff; padding:15px; border-radius:10px; text-align:center; margin:15px 0;">
+
+<span>\[
+y = \beta_0 + \beta_1 x
+\]</span>
+
+</div>
+
+<p>
+dengan:
+</p>
+
+<ul>
+<li><span>\(x\)</span> = total frekuensi penyewaan film</li>
+<li><span>\(y\)</span> = total denda keterlambatan</li>
+<li><span>\(\beta_0\)</span> = intercept</li>
+<li><span>\(\beta_1\)</span> = koefisien arah hubungan</li>
+</ul>
+
+<p>
+Visualisasi ini bertujuan untuk memperjelas pola hubungan antara aktivitas penyewaan pelanggan dengan kecenderungan meningkatnya total denda keterlambatan yang dibayarkan.
+</p>
+
+</div>
+```{r Visualisasi Data 3}
+ggplot(data_3, aes(x = total_sewa, y = total_denda)) +
+  geom_point(color = "red", alpha = 0.6, size = 2.5) + 
+  geom_smooth(method = "lm", color = "black", se = FALSE, size = 1.2) + 
+  labs(
+    title = "Hubungan Antara Frekuensi Sewa dan Total Denda Pelanggan",
+    x = "Total Film yang Disewa (Kali)",
+    y = "Total Denda Keterlambatan ($)"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 14))
+```
+<div class="box">
+
+<p>
+Berdasarkan visualisasi scatter plot “Hubungan Antara Frekuensi Sewa dan Total Denda Pelanggan”, terlihat adanya hubungan positif antara jumlah film yang disewa pelanggan dengan total denda keterlambatan yang dibayarkan. Hal ini ditunjukkan oleh pola persebaran titik yang cenderung bergerak dari kiri bawah menuju kanan atas serta diperkuat oleh garis regresi linear yang memiliki arah kemiringan positif.
+</p>
+
+<p>
+Semakin tinggi frekuensi penyewaan film pelanggan, maka semakin besar pula kecenderungan total denda keterlambatan yang dimiliki pelanggan tersebut. Sebagian besar pelanggan berada pada rentang 20–35 kali penyewaan dengan total denda sekitar $20 hingga $50.
+</p>
+
+<p>
+Selain itu, terlihat beberapa titik ekstrem (outlier) pada bagian kanan atas grafik yang menunjukkan adanya pelanggan dengan frekuensi sewa sangat tinggi disertai total denda yang besar, bahkan melebihi $80. Kondisi ini menunjukkan bahwa pelanggan aktif memiliki potensi keterlambatan pengembalian yang lebih tinggi dibandingkan pelanggan lain.
+</p>
+
+<p>
+Walaupun terdapat variasi data yang cukup besar, pola hubungan positif masih terlihat cukup jelas. Hal ini sejalan dengan hasil uji korelasi Pearson sebelumnya yang menghasilkan nilai koefisien korelasi sebesar:
+</p>
+
+<div style="background-color:#eef2ff; padding:15px; border-radius:10px; text-align:center; margin:15px 0;">
+
+<span>\[
+r = 0.6199
+\]</span>
+
+</div>
+
+<p>
+Nilai tersebut menunjukkan bahwa hubungan antara frekuensi penyewaan dan total denda berada pada kategori sedang hingga kuat dengan arah hubungan positif.
+</p>
+
+</div>
